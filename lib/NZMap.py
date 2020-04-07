@@ -60,9 +60,6 @@ class Map(osmium.SimpleHandler):
                     self.cellsDict[cell.osmId] = cell
                     self.cells.append(cell)
                     self.num_cells += 1
-                    if (prevCell is not None):
-                        prevCell.destination.append(cell)
-                        cell.destination.append(prevCell)
                 if prevNode is not None:
                     #calculate how much cells between 2 node
                     coords1 = (prevNode.lat,prevNode.lon)
@@ -79,6 +76,8 @@ class Map(osmium.SimpleHandler):
                             
                     #if not generate
                     if not_generated:
+                        prevCell.destination.append(cell)
+                        cell.destination.append(prevCell)
                         localPrev = prevCell
                         for i in range(1,cellnumber):
                             #use the id as the name (lowest id in front)
