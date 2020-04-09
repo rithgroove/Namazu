@@ -10,7 +10,7 @@ Please See the demo folder for more information.
 
 Created a minimalist renderer so we can see all the cells are connected. 
 
-![Screenshot](/images/Screenshot from 2020-04-09 16-10-36.png)
+![Screenshot](/images/Screenshot1.png)
 Format: ![Alt Text](url)
 
 
