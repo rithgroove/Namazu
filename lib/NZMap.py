@@ -12,7 +12,11 @@ class Map(osmium.SimpleHandler):
         self.nodesDict = {}
         self.waysDict = {}
         self.cellsDict = {}
+        self.buildings = []
+        self.naturals = []
         self.nodes = []
+        self.leisures = []
+        self.amenities = []
         self.ways = []
         self.cells = []
         self.minlat = 0
@@ -50,57 +54,72 @@ class Map(osmium.SimpleHandler):
                 
     def generateCells(self):
         for x in self.ways:
-            prevNode = None
-            prevCell = None
-            for node in x.nodes:
-                cell = self.cellsDict.get(f"{node.osmId}")
-                if cell is None:
-                    cell = Cell()
-                    cell.fill(node.osmId,node.lat,node.lon)
-                    self.cellsDict[cell.osmId] = cell
-                    self.cells.append(cell)
-                    self.num_cells += 1
-                if prevNode is not None:
-                    #calculate how much cells between 2 node
-                    coords1 = (prevNode.lat,prevNode.lon)
-                    coords2 = (node.lat,node.lon)
-                    coords_distance = distance.distance(coords1, coords2).km * 1000
-                    cellnumber = int(coords_distance/ 20)
-                    not_generated = True
-                    
-                    #check if the path between 2 nodes have been generated before
-                    for temp in prevCell.destination:
-                        if (temp.osmId == cell.osmId):
-                            not_generated = False
-                            break
-                            
-                    #if not generate
-                    if not_generated:
-                        prevCell.destination.append(cell)
-                        cell.destination.append(prevCell)
-                        localPrev = prevCell
-                        for i in range(1,cellnumber):
-                            #use the id as the name (lowest id in front)
-                            inbetween_cell_name = f"{min(prevCell.osmId,cell.osmId)}-{max(prevCell.osmId,cell.osmId)}-{i}"
-                            #just incase check if the inbetween id is exist, probably not, but just to make sure.
-                            inbetween_cell = self.cellsDict.get(inbetween_cell_name)
-                            if (inbetween_cell is None):
-                                inbetween_cell = Cell()
-                                lat = prevCell.lat + (float(i)/cellnumber *(cell.lat-prevCell.lat))
-                                lon = prevCell.lon + (float(i)/cellnumber *(cell.lon-prevCell.lon))
-                                inbetween_cell.fill(inbetween_cell_name,lat,lon)
-                                self.cellsDict[inbetween_cell_name] = inbetween_cell
-                                self.cells.append(inbetween_cell)
-                                self.num_cells += 1
-                                localPrev.connection.append(inbetween_cell)
-                                inbetween_cell.connection.append(localPrev)
-                                inbetween_cell.destination.append(cell)
-                                inbetween_cell.destination.append(prevCell)
-                            localPrev = inbetween_cell
-                        localPrev.connection.append(cell)
-                        cell.connection.append(localPrev)
-                prevCell = cell
-                prevNode = node
+            notRoad = False
+            if 'building' in x.tags.keys():
+                notRoad = True
+                self.buildings.append(x)
+            if 'natural' in x.tags.keys():
+                notRoad = True
+                self.naturals.append(x)
+            if 'leisure' in x.tags.keys():
+                notRoad = True
+                self.leisures.append(x)
+            if 'amenity' in x.tags.keys():
+                notRoad = True
+                self.amenities.append(x)
+            if (not notRoad):
+                prevNode = None
+                prevCell = None              
+                for node in x.nodes:
+                    cell = self.cellsDict.get(f"{node.osmId}")
+                    if cell is None:
+                        cell = Cell()
+                        cell.fill(node.osmId,node.lat,node.lon)
+                        self.cellsDict[cell.osmId] = cell
+                        self.cells.append(cell)
+                        self.num_cells += 1
+                    if prevNode is not None:
+                        #calculate how much cells between 2 node
+                        coords1 = (prevNode.lat,prevNode.lon)
+                        coords2 = (node.lat,node.lon)
+                        coords_distance = distance.distance(coords1, coords2).km * 1000
+                        cellnumber = int(coords_distance/ 20)
+                        not_generated = True
+
+                        #check if the path between 2 nodes have been generated before
+                        for temp in prevCell.destination:
+                            if (temp.osmId == cell.osmId):
+                                not_generated = False
+                                break
+
+                        #if not generate
+                        if not_generated:
+                            if (prevCell is not None):
+                                prevCell.destination.append(cell)
+                                cell.destination.append(prevCell)
+                            localPrev = prevCell
+                            for i in range(1,cellnumber):
+                                #use the id as the name (lowest id in front)
+                                inbetween_cell_name = f"{min(prevCell.osmId,cell.osmId)}-{max(prevCell.osmId,cell.osmId)}-{i}"
+                                #just incase check if the inbetween id is exist, probably not, but just to make sure.
+                                inbetween_cell = self.cellsDict.get(inbetween_cell_name)
+                                if (inbetween_cell is None):
+                                    inbetween_cell = Cell()
+                                    lat = prevCell.lat + (float(i)/cellnumber *(cell.lat-prevCell.lat))
+                                    lon = prevCell.lon + (float(i)/cellnumber *(cell.lon-prevCell.lon))
+                                    inbetween_cell.fill(inbetween_cell_name,lat,lon)
+                                    self.cellsDict[inbetween_cell_name] = inbetween_cell
+                                    self.cells.append(inbetween_cell)
+                                    self.num_cells += 1
+                                    localPrev.connection.append(inbetween_cell)
+                                    inbetween_cell.connection.append(localPrev)
+                                    inbetween_cell.destination.append(cell)
+                                    inbetween_cell.destination.append(prevCell)
+                                localPrev = inbetween_cell
+                            localPrev.connection.append(cell)
+                            cell.connection.append(localPrev)
+                    prevCell = cell
+                    prevNode = node
                 
 class Node():    
     def __init__(self):
