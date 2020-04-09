@@ -11,9 +11,6 @@ Please See the demo folder for more information.
 Created a minimalist renderer so we can see all the cells are connected. 
 
 ![Screenshot](/images/Screenshot1.png)
-Format: ![Alt Text](url)
-
-
 
 required dependencies:
 - Osmium 
