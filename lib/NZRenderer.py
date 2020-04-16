@@ -184,11 +184,6 @@ def draw():
             y1 = (canvasSize[1]-( connection.lat - canvasOrigin[1])) * scale + viewPort[1]
             canvas.create_line(x, y, x1, y1)
             
-    for temp in osmMap.nodes:
-        if ('highway' in temp.tags.keys() ):
-            x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
-            y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
-            canvas.create_oval(x-2, y-2, x+2, y+2, fill="#CC3333")
             
     for temp2  in osmMap.ways:
         for temp in temp2.nodes:
@@ -197,19 +192,38 @@ def draw():
                 x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
                 y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
                 canvas.create_oval(x-2, y-2, x+2, y+2, fill="#33CC33")
-                
-def render(map):
+            
+def drawPath(path):
+    prev = None
+    for temp in path:
+        if (prev is not None):            
+            x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
+            y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
+            x1 = (prev.lon - canvasOrigin[0]) * scale +viewPort[0]
+            y1 = (canvasSize[1]-( prev.lat - canvasOrigin[1])) * scale + viewPort[1]
+            canvas.create_line(x, y, x1, y1,fill="#0000FF")
+        prev = temp
+    for temp in path:
+        x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
+        y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
+        canvas.create_oval(x-3, y-3, x+3, y+3, fill="#0000FF")
+    
+def render(map,path = None):
     global osmMap
     global canvasOrigin
     global canvasMax
     global canvasSize
     global canvas
     global scale
+    global windowSize
+    global viewPort
     osmMap = map
     canvasOrigin = (float(osmMap.minlon),float(osmMap.minlat))
     canvasMax = (float(osmMap.maxlon),float(osmMap.maxlat))
     canvasSize = (float(osmMap.maxlon)-float(osmMap.minlon),float(osmMap.maxlat)-float(osmMap.minlat))
-    scale = 60000 
+    scale = 100000 
+    windowSize = (1024,768)
+    viewPort = (0,0)
     prevPosition = None
     root = tkinter.Tk()
     canvas = tkinter.Canvas(root)
@@ -218,4 +232,6 @@ def render(map):
     canvas.pack()
     canvas.config(width=windowSize[0], height=windowSize[1])
     draw()
+    if (path is not None):
+        drawPath(path)
     root.mainloop()

@@ -12,6 +12,7 @@ class Map(osmium.SimpleHandler):
         self.nodesDict = {}
         self.waysDict = {}
         self.cellsDict = {}
+        self.roadsDict = {}
         self.buildings = []
         self.naturals = []
         self.nodes = []
@@ -19,6 +20,7 @@ class Map(osmium.SimpleHandler):
         self.amenities = []
         self.ways = []
         self.cells = []
+        self.roads = []
         self.minlat = 0
         self.minlon = 0
         self.maxlat = 0
@@ -69,12 +71,18 @@ class Map(osmium.SimpleHandler):
                 self.amenities.append(x)
             if (not notRoad):
                 prevNode = None
-                prevCell = None              
+                prevCell = None        
+                isRoad = False
+                if 'highway' in x.tags.keys():
+                    isRoad = True
                 for node in x.nodes:
                     cell = self.cellsDict.get(f"{node.osmId}")
                     if cell is None:
                         cell = Cell()
                         cell.fill(node.osmId,node.lat,node.lon)
+                        cell.isRoad = isRoad
+                        if (isRoad):
+                            self.roadsDict[cell.osmId] =cell
                         self.cellsDict[cell.osmId] = cell
                         self.cells.append(cell)
                         self.num_cells += 1
@@ -107,7 +115,12 @@ class Map(osmium.SimpleHandler):
                                     inbetween_cell = Cell()
                                     lat = prevCell.lat + (float(i)/cellnumber *(cell.lat-prevCell.lat))
                                     lon = prevCell.lon + (float(i)/cellnumber *(cell.lon-prevCell.lon))
+                                    
                                     inbetween_cell.fill(inbetween_cell_name,lat,lon)
+                                    inbetween_cell.isRoad = isRoad
+                                    if (isRoad):
+                                        self.roadsDict[inbetween_cell.osmId] =inbetween_cell
+                        
                                     self.cellsDict[inbetween_cell_name] = inbetween_cell
                                     self.cells.append(inbetween_cell)
                                     self.num_cells += 1
@@ -132,7 +145,7 @@ class Node():
         self.osmId = ""
         
     def fill(self, osmNode):
-        self.osmId = osmNode.id
+        self.osmId = f"{osmNode.id}"
         self.lat = osmNode.location.lat
         self.lon = osmNode.location.lon
         for tag in osmNode.tags:
@@ -158,7 +171,7 @@ class Way():
         self.osmId = ""
         
     def fill(self, osmWay, nodes):
-        self.osmId = osmWay.id
+        self.osmId = f"{osmWay.id}"
 
         for node in osmWay.nodes:
             temp = nodes[f"n{node.ref}"]
@@ -185,10 +198,16 @@ class Cell():
         self.osmId = None
         self.lat = None
         self.lon = None
+        self.tags = None
     def fill (self,osmId,lat,lon):
         self.lat = lat
         self.lon = lon
-        self.osmId = osmId;
+        self.osmId = f"{osmId}"
+    def __str__(self):
+        tempstring = f"id: {self.osmId}\nlat = {self.lat} lon = {self.lon} \nNeighbor : \n"
+        for neighbor in self.connection:
+            tempstring = tempstring + f"\t{neighbor.osmId} : {neighbor.lat}, {neighbor.lon}\n"
+        return tempstring
         
 def readFile(filepath):
     generatedMap = Map()
