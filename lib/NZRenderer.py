@@ -2,6 +2,7 @@ import tkinter
 
 
 osmMap = None
+sim = None
 windowSize = (1024,768)
 viewPort = (0,0)
 canvasOrigin = None
@@ -43,8 +44,13 @@ def motion(event):
 
 def clickRelease(event):
     global prevPosition
-    #print("Clear Previous Position")
     prevPosition = None
+
+def doubleClick(event):
+    sim.step()
+    print("finish stepping")
+    for x in sim.agents:
+        moveAgent(x)
 
 
     
@@ -207,8 +213,25 @@ def drawPath(path):
         x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
         y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
         canvas.create_oval(x-3, y-3, x+3, y+3, fill="#0000FF")
+        
+def drawAgent():
+    for evacPoint in sim.evacPoints:
+        x =  (evacPoint.cell.lon - canvasOrigin[0]) * scale +viewPort[0]
+        y = (canvasSize[1]-(evacPoint.cell.lat - canvasOrigin[1])) * scale + viewPort[1]
+        canvas.create_oval(x-10, y-10, x+10, y+10, fill="#3333CC")
+    for agent in sim.agents:
+        #print(agent.currentCell)
+        x =  (agent.currentCell.lon - canvasOrigin[0]) * scale +viewPort[0]
+        y = (canvasSize[1]-( agent.currentCell.lat - canvasOrigin[1])) * scale + viewPort[1]
+        agent.oval = canvas.create_oval(x-5, y-5, x+5, y+5, fill="#CC3333",tag = agent.name)
+
+def moveAgent(agent):
+    x = agent.transition[0] * scale
+    y = agent.transition[1]  * scale * -1
+    #print((x,y,agent.oval))
+    canvas.move(agent.oval,x,y)
     
-def render(map,path = None):
+def render(map,simulation = None, path = None):
     global osmMap
     global canvasOrigin
     global canvasMax
@@ -217,6 +240,8 @@ def render(map,path = None):
     global scale
     global windowSize
     global viewPort
+    global sim
+    sim = simulation
     osmMap = map
     canvasOrigin = (float(osmMap.minlon),float(osmMap.minlat))
     canvasMax = (float(osmMap.maxlon),float(osmMap.maxlat))
@@ -229,9 +254,12 @@ def render(map,path = None):
     canvas = tkinter.Canvas(root)
     canvas.bind("<B1-Motion>", motion)
     canvas.bind("<ButtonRelease-1>",clickRelease)
+    canvas.bind("<Double-Button-1>",doubleClick)
     canvas.pack()
     canvas.config(width=windowSize[0], height=windowSize[1])
     draw()
     if (path is not None):
         drawPath(path)
+    if (sim is not None):
+        drawAgent()
     root.mainloop()

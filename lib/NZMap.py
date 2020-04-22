@@ -24,7 +24,7 @@ class Map(osmium.SimpleHandler):
         self.minlat = 0
         self.minlon = 0
         self.maxlat = 0
-        self.maxlon = 0 
+        self.maxlon = 0
 
     def changeSet(self, n):
         print(n)
@@ -133,7 +133,9 @@ class Map(osmium.SimpleHandler):
                             cell.connection.append(localPrev)
                     prevCell = cell
                     prevNode = node
-                
+        for x in self.roadsDict.keys():
+            self.roads.append(self.roadsDict[x])
+                    
 class Node():    
     def __init__(self):
         self.lat = 0.0
@@ -194,7 +196,10 @@ class Way():
 class Cell():
     def __init__(self):
         self.connection = []
+        self.connectionWeight = []
         self.destination = []
+        self.population = []
+        
         self.osmId = None
         self.lat = None
         self.lon = None
@@ -208,6 +213,8 @@ class Cell():
         for neighbor in self.connection:
             tempstring = tempstring + f"\t{neighbor.osmId} : {neighbor.lat}, {neighbor.lon}\n"
         return tempstring
+    def initializeWeight():
+        self.connectionWeight = np.zeros(())
         
 def readFile(filepath):
     generatedMap = Map()
