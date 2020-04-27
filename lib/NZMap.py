@@ -54,6 +54,34 @@ class Map(osmium.SimpleHandler):
                 self.maxlon = child.attrib['maxlon']
                 break
                 
+    def restructureRoad(self):
+        allRoads = []
+        i = 0 
+        while self.roads.__len__() > 0:
+            i +=1
+            queue = []
+            roadGroup = []
+            workingOn = self.roads.pop(0)
+            roadGroup.append(workingOn)
+            queue.append(workingOn)
+            while (queue.__len__() > 0):
+                workingOn = queue.pop(0)
+                for x in workingOn.connection:
+                    if (x in self.roads):
+                        self.roads.remove(x)
+                        if (x not in roadGroup):
+                            roadGroup.append(x)
+                        if (x not in queue):
+                            queue.append(x)
+            allRoads.append(roadGroup)
+            print(f"Road {i} : {roadGroup.__len__()} cell")
+        max = 0 
+        for x in allRoads:
+            if (x.__len__() > max):
+                self.roads = x
+                max = x.__len__()
+            
+
     def generateCells(self):
         for x in self.ways:
             notRoad = False

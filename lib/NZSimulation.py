@@ -31,9 +31,9 @@ class Simulation():
             
     def step(self):
         #print("Stepping each agent")
+        self.stepCount +=1
         for x in self.agents:
             x.step()
-            self.stepCount +=1
             
     def __str__(self):
         temp = f"Total agent = {self.agents.__len__()}\n"
@@ -61,6 +61,7 @@ class Agent():
         self.evacuationStart = None
         self.oval = None
         self.transition = (0,0)
+        self.evacuated = False
         
     def setCell(self,cell):
         self.currentCell = cell 
@@ -84,6 +85,11 @@ class Agent():
             nextCell.population.append(self)
             cell.population.remove(self)
             #print(self.transition)
+        else:
+            #if (self.currentCell == self.currentERI):
+            if (not self.evacuated):
+                print("Evac Success")
+            self.evacuated = True
         
 class evacPoint():
     def __init__(self,cell, capacity):
@@ -115,6 +121,7 @@ class ERI():
             if (result[0] != -1 and self.closestDistance > result[0]):
                 self.closestDistance = result[0]
                 self.mainPath = result[1]
+                destination = x
     def step(self):
         if (self.mainPath is None or self.mainPath.__len__() == 0):
             return None
