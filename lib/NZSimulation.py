@@ -9,8 +9,8 @@ class Simulation():
         
     def initialize(self,agents, evac):
         for x in range(0,evac):
-            #set 5 capacity for now
-            temp = evacPoint(self.nzMap.roads[random.randint(0,self.nzMap.roads.__len__())],5)
+            #set 12 capacity for now
+            temp = evacPoint(self.nzMap.roads[random.randint(0,self.nzMap.roads.__len__())],12)
             self.evacPoints.append(temp)
         for x in range(0,agents):
             temp = Agent(f"agent-{x}")
@@ -88,15 +88,28 @@ class Agent():
         else:
             #if (self.currentCell == self.currentERI):
             if (not self.evacuated):
-                print("Evac Success")
-            self.evacuated = True
+                if (self.currentERI.destination.addEvacuees(self)):
+                    print("Evac Success")
+                    self.evacuated = True
+                else:
+                    print("Evacpoint full, finding next evac point")
+                    self.currentERI.disableEvacPoint(self.currentERI.destination)
+                    self.calculateTrajectory()
         
 class evacPoint():
     def __init__(self,cell, capacity):
         self.cell = cell
         self.capacity = capacity
+        self.occupancy = 0
         self.currentEvacuees = 0
-        
+        self.agents = []
+    def addEvacuees(self,agent):
+        if agent.number < self.capacity - self.occupancy:
+            self.agents.append(agent)
+            self.occupancy += agent.number
+            return True
+        return False
+    
 class ERI():
     def __init__(self,nzMap):
         self.evacPoints = []
@@ -107,21 +120,25 @@ class ERI():
         self.mainPath = None
         self.destination = None
         self.closestDistance = 127420000
+        self.disabledEvacPoints = []
     def updateEvacPoints(self,evacPoints):
         self.evacPoints = evacPoints
         #don't forget to update timestamp later
+        
     def calculateClosestEvacPoint(self,currentCell, skipUnimportantEvacPoint=True):
         self.closestDistance = 127420000#1% of earth diameter
         for x in self.evacPoints:
-            result = None 
-            if(skipUnimportantEvacPoint):
-                result = searchPath(self.nzMap,currentCell,x.cell,self.closestDistance)
-            else:
-                result = searchPath(self.nzMap,currentCell,x.cell)                
-            if (result[0] != -1 and self.closestDistance > result[0]):
-                self.closestDistance = result[0]
-                self.mainPath = result[1]
-                destination = x
+            if (x not in self.disabledEvacPoints):
+                result = None 
+                if(skipUnimportantEvacPoint):
+                    result = searchPath(self.nzMap,currentCell,x.cell,self.closestDistance)
+                else:
+                    result = searchPath(self.nzMap,currentCell,x.cell)                
+                if (result[0] != -1 and self.closestDistance > result[0]):
+                    self.closestDistance = result[0]
+                    self.mainPath = result[1]
+                    self.destination = x
+                
     def step(self):
         if (self.mainPath is None or self.mainPath.__len__() == 0):
             return None
@@ -130,6 +147,9 @@ class ERI():
     def __str__(self):
         test = f"Distance = {self.closestDistance}\nDestination: \n{self.mainPath[-1]}"
         return test
+    
+    def disableEvacPoint(self,evacPoint):
+        self.disabledEvacPoints.append(evacPoint)
         
     
 class AStarNode():
