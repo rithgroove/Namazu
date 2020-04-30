@@ -1,4 +1,5 @@
 import tkinter 
+import platform
 
 
 osmMap = None
@@ -11,6 +12,8 @@ canvasSize = None
 scale = None 
 prevPosition = None
 canvas = None
+OS = platform.system()
+
 
 
 def motion(event):
@@ -35,7 +38,6 @@ def motion(event):
             viewPort = (viewPort[0], int( -1* scale *canvasSize[1] + windowSize[1]))
         
     prevPosition = (event.x,event.y)
-    #print(viewPort[0], viewPort[1])
     canvas.scan_dragto(viewPort[0], viewPort[1], gain=1)
     #draw()
     #print("Mouse position: (%s %s)" % (event.x, event.y))
@@ -52,10 +54,28 @@ def doubleClick(event):
     for x in sim.agents:
         moveAgent(x)
 
+def scroll(event):
+    global canvas
+    global viewPort
+    global scale
+    value = -1*(event.delta)
+    print(f"Scrolling {value}")
+    if OS == 'Linux':
+        if event.num == 4:
+            canvas.scale('all', 0, 0, 1.1, 1.1)
+            scale *=  1.1
+        elif event.num == 5:
+            canvas.scale('all', 0, 0, 10.0/11.0, 10.0/11.0)
+            scale *= (10.0/11.0)
+    else:          
+        if (value > 0):
+            canvas.scale('all', 0, 0,1.1, 1.1)
+            scale *=  1.1
+        elif (value <0):
+            canvas.scale('all', 0, 0, 10.0/11.0, 10.0/11.0)
+            scale *= (10.0/11.0)
 
-    
-def draw():
-            
+def draw():            
     for temp in osmMap.amenities:
         path = []
         for node in temp.nodes:
@@ -246,7 +266,7 @@ def render(map,simulation = None, path = None):
     canvasOrigin = (float(osmMap.minlon),float(osmMap.minlat))
     canvasMax = (float(osmMap.maxlon),float(osmMap.maxlat))
     canvasSize = (float(osmMap.maxlon)-float(osmMap.minlon),float(osmMap.maxlat)-float(osmMap.minlat))
-    scale = 100000 
+    scale = 100000
     windowSize = (1024,768)
     viewPort = (0,0)
     prevPosition = None
@@ -255,6 +275,13 @@ def render(map,simulation = None, path = None):
     canvas.bind("<B1-Motion>", motion)
     canvas.bind("<ButtonRelease-1>",clickRelease)
     canvas.bind("<Double-Button-1>",doubleClick)
+    canvas.bind("<MouseWheel>", scroll)
+    if OS == "Linux":
+        root.bind_all('<4>', scroll, add='+')
+        root.bind_all('<5>', scroll, add='+')
+    else:
+        # Windows and MacOS
+        root.bind_all("<MouseWheel>", scroll, add='+')
     canvas.pack()
     canvas.config(width=windowSize[0], height=windowSize[1])
     draw()
