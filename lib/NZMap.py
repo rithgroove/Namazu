@@ -48,10 +48,10 @@ class Map(osmium.SimpleHandler):
         root = tree.getroot()
         for child in root:
             if (child.tag == 'bounds'):
-                self.minlat = child.attrib['minlat']
-                self.maxlat = child.attrib['maxlat']
-                self.minlon = child.attrib['minlon']
-                self.maxlon = child.attrib['maxlon']
+                self.minlat = float(child.attrib['minlat'])
+                self.maxlat = float(child.attrib['maxlat'])
+                self.minlon = float(child.attrib['minlon'])
+                self.maxlon = float(child.attrib['maxlon'])
                 break
                 
     def restructureRoad(self):
@@ -108,12 +108,15 @@ class Map(osmium.SimpleHandler):
                     if cell is None:
                         cell = Cell()
                         cell.fill(node.osmId,node.lat,node.lon)
+                        if (cell.lon < self.minlon or cell.lon > self.maxlon or cell.lat < self.minlat or cell.lat > self.maxlat):
+                            cell.outOfBounds = True
                         cell.isRoad = isRoad
                         if (isRoad):
                             self.roadsDict[cell.osmId] =cell
                         self.cellsDict[cell.osmId] = cell
                         self.cells.append(cell)
                         self.num_cells += 1
+                        
                     if prevNode is not None:
                         #calculate how much cells between 2 node
                         coords1 = (prevNode.lat,prevNode.lon)
@@ -148,7 +151,8 @@ class Map(osmium.SimpleHandler):
                                     inbetween_cell.isRoad = isRoad
                                     if (isRoad):
                                         self.roadsDict[inbetween_cell.osmId] =inbetween_cell
-                        
+                                    if (inbetween_cell.lon < self.minlon or inbetween_cell.lon > self.maxlon or inbetween_cell.lat < self.minlat or inbetween_cell.lat > self.maxlat):
+                                        inbetween_cell.outOfBounds = True
                                     self.cellsDict[inbetween_cell_name] = inbetween_cell
                                     self.cells.append(inbetween_cell)
                                     self.num_cells += 1
@@ -227,7 +231,7 @@ class Cell():
         self.connectionWeight = []
         self.destination = []
         self.population = []
-        
+        self.outOfBounds = False
         self.osmId = None
         self.lat = None
         self.lon = None
@@ -243,6 +247,8 @@ class Cell():
         return tempstring
     def initializeWeight():
         self.connectionWeight = np.zeros(())
+    def getPosition(self):
+        return (self.lat,self.lon);
         
 def readFile(filepath):
     generatedMap = Map()

@@ -3,41 +3,86 @@ import random
 class Simulation():
     def __init__(self, nzMap):
         self.agents = []
+        self.evacuatedAgent = []
         self.evacPoints = []
         self.nzMap = nzMap
         self.stepCount = 0
+        self.filledEvacPoints = 0
         
     def initialize(self,agents, evac):
-        for x in range(0,evac):
+        self.evacPoints = []
+        while self.evacPoints.__len__() < evac:
             #set 12 capacity for now
-            temp = evacPoint(self.nzMap.roads[random.randint(0,self.nzMap.roads.__len__())],12)
-            self.evacPoints.append(temp)
-        for x in range(0,agents):
+            cell = self.nzMap.roads[random.randint(0,self.nzMap.roads.__len__())]
+            if not cell.outOfBounds:
+                temp = evacPoint(cell,50)
+                self.evacPoints.append(temp)
+        self.agents = []
+        x = 1
+        while self.agents.__len__() < agents:
             temp = Agent(f"agent-{x}")
             #set one person
             temp.number = 1
             randomized = random.randint(0,self.nzMap.roads.__len__())
             #print(randomized)
             cell = self.nzMap.roads[randomized]
-            #print(cell)
-            temp.setCell(cell)
-            cell.population.append(temp)
-            self.agents.append(temp)
-            eri = ERI(self.nzMap)
-            eri.updateEvacPoints(self.evacPoints)
-            temp.setERI(eri)
-            temp.calculateTrajectory()
-            print(f"Processing = {x+1}/{agents} agents")
+            #print(cell)            
+            if not cell.outOfBounds:
+                temp.setCell(cell)
+                cell.population.append(temp)
+                self.agents.append(temp)
+                eri = ERI(self.nzMap,self)
+                eps = []
+                for ep in self.evacPoints:
+                    epDistance = distance.distance(ep.cell.getPosition(),cell.getPosition()).km
+                    eps.append((ep, epDistance))
+                eps.sort(key=lambda tup: tup[1])
+                temp2 = []
+                for i in range(0,3):
+                    temp2.append(eps[i][0])
+                eri.initiateEvacPoints(temp2)
+                temp.setERI(eri)
+                temp.calculateTrajectory()
+                print(f"Processing = {x}/{agents} agents")
+                x += 1
+            else:
+                print(f"Selected Cell is out of bounds, selecting another random cell")
             
     def step(self):
         #print("Stepping each agent")
         self.stepCount +=1
         for x in self.agents:
+            temp = x.evacuated
             x.step()
-            
+            if (temp != x.evacuated):
+                self.evacuatedAgent.append(x)        
+        self.filledEvacPoints = 0 
+        for x in self.evacPoints:
+            if (x.occupancy == x.capacity):
+                self.filledEvacPoints += 1                
+        self.shareInfo()
+                
+    def shareInfo(self):
+        affectedAgent =[]
+        for x in self.agents:
+            if (not x.evacuated and x.currentCell.population.__len__() > 1):
+                for y in x.currentCell.population:
+                    if (x != y and not y.evacuated):
+                        result = x.shareKnowledge(y)
+                        if(result and y not in affectedAgent):
+                            affectedAgent.append(y);
+        if (affectedAgent.__len__() > 0):
+            temp = f"{affectedAgent.__len__()} number of agents got new knowledge"
+        for x in affectedAgent:
+            x.calculateTrajectory()
+    
     def __str__(self):
-        temp = f"Total agent = {self.agents.__len__()}\n"
+        temp = f"Step count = {self.stepCount}\n"
+        temp = f"{temp}Total agent = {self.agents.__len__()}\n"
+        temp = f"{temp}\tTotal Unevacuated = {self.agents.__len__()-self.evacuatedAgent.__len__()}\n"
+        temp = f"{temp}\tTotal Evacuated = {self.evacuatedAgent.__len__()}\n"        
         temp = f"{temp}Total Evac Point = {self.evacPoints.__len__()}\n"
+        temp = f"{temp}\tTotal Filled Evac Point = {self.filledEvacPoints}\n"
         return temp
         
         
@@ -94,46 +139,54 @@ class Agent():
                 else:
                     print("Evacpoint full, finding next evac point")
                     self.currentERI.disableEvacPoint(self.currentERI.destination)
+                    self.currentERI.getNewEvacPointInformation(self)
                     self.calculateTrajectory()
+    def shareKnowledge(self, agent):
+        return self.currentERI.shareKnowledge(agent.currentERI)
         
+    
 class evacPoint():
     def __init__(self,cell, capacity):
         self.cell = cell
         self.capacity = capacity
         self.occupancy = 0
-        self.currentEvacuees = 0
         self.agents = []
     def addEvacuees(self,agent):
-        if agent.number < self.capacity - self.occupancy:
+        if agent.number <= (self.capacity - self.occupancy):
             self.agents.append(agent)
             self.occupancy += agent.number
             return True
         return False
     
 class ERI():
-    def __init__(self,nzMap):
+    def __init__(self,nzMap,nzSim):
         self.evacPoints = []
+        self.evacPointsDistance = []
         self.blockedCell = {}
         self.blockedConnection = {}
         self.nzMap = nzMap
+        self.nzSim = nzSim
         self.timestamp = None
         self.mainPath = None
         self.destination = None
         self.closestDistance = 127420000
         self.disabledEvacPoints = []
-    def updateEvacPoints(self,evacPoints):
+    def initiateEvacPoints(self,evacPoints):
         self.evacPoints = evacPoints
         #don't forget to update timestamp later
         
     def calculateClosestEvacPoint(self,currentCell, skipUnimportantEvacPoint=True):
         self.closestDistance = 127420000#1% of earth diameter
+        self.evacPointsDistance = []
         for x in self.evacPoints:
             if (x not in self.disabledEvacPoints):
                 result = None 
                 if(skipUnimportantEvacPoint):
                     result = searchPath(self.nzMap,currentCell,x.cell,self.closestDistance)
+                    self.evacPointsDistance.append(result)
                 else:
                     result = searchPath(self.nzMap,currentCell,x.cell)                
+                    self.evacPointsDistance.append(result)
                 if (result[0] != -1 and self.closestDistance > result[0]):
                     self.closestDistance = result[0]
                     self.mainPath = result[1]
@@ -143,14 +196,41 @@ class ERI():
         if (self.mainPath is None or self.mainPath.__len__() == 0):
             return None
         return self.mainPath.pop(0)
-    
+        
     def __str__(self):
         test = f"Distance = {self.closestDistance}\nDestination: \n{self.mainPath[-1]}"
         return test
     
     def disableEvacPoint(self,evacPoint):
-        self.disabledEvacPoints.append(evacPoint)
+        if (evacPoint not in self.disabledEvacPoints):
+            self.disabledEvacPoints.append(evacPoint)
+            return True
+        return False
         
+    def getNewEvacPointInformation(self,agent):
+        eps = []
+        for ep in self.nzSim.evacPoints: 
+            if (ep not in self.evacPoints):
+                epDistance = distance.distance(ep.cell.getPosition(),agent.currentCell.getPosition()).km
+                eps.append((ep, epDistance))
+        if (eps.__len__() > 0):
+            eps.sort(key=lambda tup: tup[1])
+            self.evacPoints.append(eps[0][0])
+        
+    def addEvacPoint(self,evacPoint):
+        self.evacPoints.append(evacPoint)
+        
+    def shareKnowledge(self, otherERI):
+        temp = False
+        for evacPoint in self.evacPoints:
+            if (evacPoint not in otherERI.evacPoints):
+                otherERI.addEvacPoint(evacPoint)
+                temp = True
+        for disabledEP in self.disabledEvacPoints:
+            if (otherERI.disableEvacPoint(disabledEP)):
+                temp = True
+        return temp
+
     
 class AStarNode():
     def __init__(self,cell,targetCell):

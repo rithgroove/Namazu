@@ -204,7 +204,7 @@ def draw():
     for temp in osmMap.cells:
         x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
         y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
-        canvas.create_oval(x-1, y-1, x+1, y+1, fill="#476042")
+        drawCircle(temp.lon,temp.lat,1, "#476042")
         for connection in temp.connection:
             x1 = (connection.lon - canvasOrigin[0]) * scale +viewPort[0]
             y1 = (canvasSize[1]-( connection.lat - canvasOrigin[1])) * scale + viewPort[1]
@@ -214,10 +214,7 @@ def draw():
     for temp2  in osmMap.ways:
         for temp in temp2.nodes:
             if temp.tags.keys().__len__() == 0:
-                #print(temp.tags)
-                x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
-                y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
-                canvas.create_oval(x-2, y-2, x+2, y+2, fill="#33CC33")
+                drawCircle(temp.lon, temp.lat, 2,"#33CC33")
             
 def drawPath(path):
     prev = None
@@ -230,27 +227,40 @@ def drawPath(path):
             canvas.create_line(x, y, x1, y1,fill="#0000FF")
         prev = temp
     for temp in path:
-        x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
-        y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
-        canvas.create_oval(x-3, y-3, x+3, y+3, fill="#0000FF")
+        drawCircle(temp.lon, temp.lat, 3,"#0000FF")
         
 def drawAgent():
     for evacPoint in sim.evacPoints:
-        x =  (evacPoint.cell.lon - canvasOrigin[0]) * scale +viewPort[0]
-        y = (canvasSize[1]-(evacPoint.cell.lat - canvasOrigin[1])) * scale + viewPort[1]
-        canvas.create_oval(x-10, y-10, x+10, y+10, fill="#3333CC")
+        drawCircle(evacPoint.cell.lon, evacPoint.cell.lat, 10,"#3333CC")
     for agent in sim.agents:
-        #print(agent.currentCell)
-        x =  (agent.currentCell.lon - canvasOrigin[0]) * scale +viewPort[0]
-        y = (canvasSize[1]-( agent.currentCell.lat - canvasOrigin[1])) * scale + viewPort[1]
-        agent.oval = canvas.create_oval(x-5, y-5, x+5, y+5, fill="#CC3333",tag = agent.name)
+        agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CC3333", agent.name)
 
 def moveAgent(agent):
     x = agent.transition[0] * scale
     y = agent.transition[1]  * scale * -1
     #print((x,y,agent.oval))
     canvas.move(agent.oval,x,y)
-    
+
+def drawCircle(lon,lat,radius, color, name = None):
+    x = (lon - canvasOrigin[0]) * scale +viewPort[0]
+    y = (canvasSize[1]-( lat - canvasOrigin[1])) * scale + viewPort[1]
+    circle = None
+    if (name is None):
+        circle = canvas.create_oval(x-radius, y-radius, x+radius, y+radius, fill= color)
+    else:
+        circle = canvas.create_oval(x-radius, y-radius, x+radius, y+radius, fill=color,tag = name)
+    return circle
+
+def drawLine(originLon,originLat, destinationLon, destinationLat, color, name = None):
+    x = (lon - canvasOrigin[0]) * scale +viewPort[0]
+    y = (canvasSize[1]-( lat - canvasOrigin[1])) * scale + viewPort[1]
+    circle = None
+    if (name is None):
+        circle = canvas.create_oval(x-radius, y-radius, x+radius, y+radius, fill= color)
+    else:
+        circle = canvas.create_oval(x-radius, y-radius, x+radius, y+radius, fill=color,tag = name)
+    return circle
+
 def render(map,simulation = None, path = None):
     global osmMap
     global canvasOrigin
