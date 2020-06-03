@@ -111,8 +111,9 @@ class Agent():
         self.car = False
         self.sound = 2
         self.interval = 0
+        self.nextCell = None
         self.currentCell = None
-        self.movingSpeed = 1
+        self.movingSpeed = 1.4
         self.hasERI = False
         self.currentERI = None
         self.asking = True
@@ -122,6 +123,8 @@ class Agent():
         self.oval = None
         self.transition = (0,0)
         self.evacuated = False
+        self.walkedDistanceToNextCell = 0
+        self.nextCellDistance = 0
         
     def setCell(self,cell):
         self.currentCell = cell 
@@ -136,32 +139,59 @@ class Agent():
     def step(self):
         #print(f"\n\nCurrent Cell : \n{self.currentCell}")
         self.transition = (0,0)
-        nextCell = self.currentERI.step()
-        if (nextCell is not None):
-            #print(f"\nMoving To : \n{nextCell}")
-            if (nextCell.blocked):
-                print("found a blocked cell")
-                temp = BlockedCell(nextCell)
-                self.currentERI.addBlockedCell(temp)
-                self.calculateTrajectory()
-            else:
-                cell = self.currentCell
-                self.transition = (nextCell.lon-cell.lon, nextCell.lat - cell.lat)
-                self.currentCell = nextCell
-                nextCell.population.append(self)
-                cell.population.remove(self)
-            #print(self.transition)
-        else:
-            #if (self.currentCell == self.currentERI):
-            if (not self.evacuated):
-                if (self.currentERI.destination.addEvacuees(self)):
-                    print("Evac Success")
-                    self.evacuated = True
-                else:
-                    print("Evacpoint full, finding next evac point")
-                    self.currentERI.disableEvacPoint(self.currentERI.destination)
-                    self.currentERI.getNewEvacPointInformation(self)
+        if (self.nextCell is None):    
+            nextCell = self.currentERI.step()
+            self.nextCell = nextCell
+            self.nextCellDistance = self.currentERI.calculateNextDistance(self.currentCell)
+            self.walkedDistanceToNextCell = 0
+            
+        if (self.nextCellDistance == self.walkedDistanceToNextCell):            
+            nextCell = self.nextCell
+            if (nextCell is not None):
+                #print(f"\nMoving To : \n{nextCell}")
+                if (nextCell.blocked):
+                    print("found a blocked cell")
+                    temp = BlockedCell(nextCell)
+                    self.currentERI.addBlockedCell(temp)
                     self.calculateTrajectory()
+                    self.nextCellDistance = 0
+                    self.walkedDistanceToNextCell = 0
+                else:
+                    cell = self.currentCell
+                    #self.transition = (nextCell.lon-cell.lon, nextCell.lat - cell.lat)
+                    self.currentCell = nextCell
+                    nextCell.population.append(self)
+                    cell.population.remove(self)
+                    self.nextCell = None
+                #print(self.transition)
+            else:
+                #if (self.currentCell == self.currentERI):
+                if (not self.evacuated):
+                    if (self.currentERI.destination.addEvacuees(self)):
+                        print("Evac Success")
+                        self.evacuated = True
+                        self.nextCellDistance = 0
+                        self.walkedDistanceToNextCell = 0
+                    else:
+                        print("Evacpoint full, finding next evac point")
+                        self.currentERI.disableEvacPoint(self.currentERI.destination)
+                        self.currentERI.getNewEvacPointInformation(self)
+                        self.calculateTrajectory()
+                        self.nextCellDistance = 0
+                        self.walkedDistanceToNextCell = 0
+        else:
+            cell = self.currentCell
+            tempTransition = self.movingSpeed
+            if (self.nextCellDistance- self.walkedDistanceToNextCell < self.movingSpeed):
+                self.walkedDistanceToNextCell = self.nextCellDistance
+                tempTransition = self.nextCellDistance - self.walkedDistanceToNextCell
+            else:
+                self.walkedDistanceToNextCell += self.movingSpeed
+            percentage = float(tempTransition) / float(self.nextCellDistance)
+            self.transition = ((self.nextCell.lon-cell.lon)*percentage, (self.nextCell.lat - cell.lat)*percentage)
+            #print(self.transition)
+            
+                    
     def shareKnowledge(self, agent):
         return self.currentERI.shareKnowledge(agent.currentERI)
         
@@ -226,7 +256,12 @@ class ERI():
         if (self.mainPath is None or self.mainPath.__len__() == 0):
             return None
         return self.mainPath.pop(0)
-        
+    
+    def calculateNextDistance(self,origin):
+        if (self.mainPath is None or self.mainPath.__len__() == 0):
+            return 0
+        return distance.distance(origin.getPosition(),self.mainPath[0].getPosition()).km*1000
+    
     def __str__(self):
         test = f"Distance = {self.closestDistance}\nDestination: \n{self.mainPath[-1]}"
         return test

@@ -231,11 +231,11 @@ def drawPath(path):
         
 def drawAgent():   
     for temp in sim.blockedCells:
-        drawCircle(temp.cell.lon,temp.cell.lat,5, "#33CCCC")
+        drawCircle(temp.cell.lon,temp.cell.lat,5, "#CC3333")
     for evacPoint in sim.evacPoints:
-        drawCircle(evacPoint.cell.lon, evacPoint.cell.lat, 10,"#3333CC")
+        drawCircle(evacPoint.cell.lon, evacPoint.cell.lat, 10,"#33CCCC")
     for agent in sim.agents:
-        agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#33CC33", agent.name)         
+        agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CC33CC", agent.name)         
 
 def moveAgent(agent):
     x = agent.transition[0] * scale
