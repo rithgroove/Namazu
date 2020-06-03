@@ -8,14 +8,15 @@ class Simulation():
         self.nzMap = nzMap
         self.stepCount = 0
         self.filledEvacPoints = 0
+        self.blockedCells = []
         
-    def initialize(self,agents, evac):
+    def initialize(self,agents, evac, numberOfBlockedCell = 10):
         self.evacPoints = []
         while self.evacPoints.__len__() < evac:
             #set 12 capacity for now
             cell = self.nzMap.roads[random.randint(0,self.nzMap.roads.__len__())]
             if not cell.outOfBounds:
-                temp = evacPoint(cell,50)
+                temp = evacPoint(cell,500)
                 self.evacPoints.append(temp)
         self.agents = []
         x = 1
@@ -47,6 +48,20 @@ class Simulation():
                 x += 1
             else:
                 print(f"Selected Cell is out of bounds, selecting another random cell")
+        self.blockedCells = []
+        
+        while self.blockedCells.__len__() < numberOfBlockedCell:
+            temp = Agent(f"agent-{x}")
+            #set one person
+            temp.number = 1
+            randomized = random.randint(0,self.nzMap.roads.__len__())
+            #print(randomized)
+            cell = self.nzMap.roads[randomized]
+            cell.blocked = True
+            #print(cell)            
+            if not cell.outOfBounds:
+                self.blockedCells.append(BlockedCell(cell))
+            
             
     def step(self):
         #print("Stepping each agent")
@@ -115,8 +130,8 @@ class Agent():
         self.currentERI = eri
         self.hasERI = True
         
-    def calculateTrajectory(self):
-        self.currentERI.calculateClosestEvacPoint(self.currentCell)
+    def calculateTrajectory(self,timestamp = None):
+        self.currentERI.calculateClosestEvacPoint(self.currentCell,timestamp = timestamp)
     
     def step(self):
         #print(f"\n\nCurrent Cell : \n{self.currentCell}")
@@ -124,11 +139,17 @@ class Agent():
         nextCell = self.currentERI.step()
         if (nextCell is not None):
             #print(f"\nMoving To : \n{nextCell}")
-            cell = self.currentCell
-            self.transition = (nextCell.lon-cell.lon, nextCell.lat - cell.lat)
-            self.currentCell = nextCell
-            nextCell.population.append(self)
-            cell.population.remove(self)
+            if (nextCell.blocked):
+                print("found a blocked cell")
+                temp = BlockedCell(nextCell)
+                self.currentERI.addBlockedCell(temp)
+                self.calculateTrajectory()
+            else:
+                cell = self.currentCell
+                self.transition = (nextCell.lon-cell.lon, nextCell.lat - cell.lat)
+                self.currentCell = nextCell
+                nextCell.population.append(self)
+                cell.population.remove(self)
             #print(self.transition)
         else:
             #if (self.currentCell == self.currentERI):
@@ -158,12 +179,19 @@ class evacPoint():
             return True
         return False
     
+class BlockedCell():
+    def __init__(self,cell):
+        self.cell = cell
+    def setBlocked(self):
+        self.cell.tempBlocked = True
+    def clear(self):    
+        self.cell.tempBlocked = False
+        
 class ERI():
     def __init__(self,nzMap,nzSim):
         self.evacPoints = []
         self.evacPointsDistance = []
-        self.blockedCell = {}
-        self.blockedConnection = {}
+        self.blockedCell = []
         self.nzMap = nzMap
         self.nzSim = nzSim
         self.timestamp = None
@@ -175,14 +203,14 @@ class ERI():
         self.evacPoints = evacPoints
         #don't forget to update timestamp later
         
-    def calculateClosestEvacPoint(self,currentCell, skipUnimportantEvacPoint=True):
+    def calculateClosestEvacPoint(self,currentCell, skipUnimportantEvacPoint=True, timestamp = None):
         self.closestDistance = 127420000#1% of earth diameter
         self.evacPointsDistance = []
         for x in self.evacPoints:
             if (x not in self.disabledEvacPoints):
                 result = None 
                 if(skipUnimportantEvacPoint):
-                    result = searchPath(self.nzMap,currentCell,x.cell,self.closestDistance)
+                    result = searchPath(self.nzMap,self.nzSim,currentCell,x.cell,self.closestDistance)
                     self.evacPointsDistance.append(result)
                 else:
                     result = searchPath(self.nzMap,currentCell,x.cell)                
@@ -191,6 +219,8 @@ class ERI():
                     self.closestDistance = result[0]
                     self.mainPath = result[1]
                     self.destination = x
+        if timestamp is None:
+            self.timestamp = self.nzSim.stepCount
                 
     def step(self):
         if (self.mainPath is None or self.mainPath.__len__() == 0):
@@ -219,6 +249,9 @@ class ERI():
         
     def addEvacPoint(self,evacPoint):
         self.evacPoints.append(evacPoint)
+        
+    def addBlockedCell(self,blockedCellInstance):
+        self.blockedCell.append(blockedCellInstance)
         
     def shareKnowledge(self, otherERI):
         temp = False
@@ -258,7 +291,7 @@ class AStarNode():
                 self.prevNode = prevNode
                 self.f = self.g + self.h
     
-def searchPath(nzMap,startingCell,targetCell, limit = None):
+def searchPath(nzMap,nzSim,startingCell,targetCell, limit = None):
     path = []
     quicksearch = {}
     workingList = []
@@ -268,6 +301,8 @@ def searchPath(nzMap,startingCell,targetCell, limit = None):
     found = False
     finalNode = None
     distance = -1
+    for x in nzSim.blockedCells:
+        x.setBlocked()
     while (workingList.__len__() != 0):
         workingNode = workingList.pop(0)
         workingNode.visited = True
@@ -276,9 +311,8 @@ def searchPath(nzMap,startingCell,targetCell, limit = None):
         #print(workingCell)
         if (limit is None or workingNode.f < limit):
             for x in workingCell.connection:
-
                 temp = quicksearch.get(x.osmId)
-                if (temp is None or temp not in visited):
+                if ((temp is None or temp not in visited) and not x.tempBlocked):
 
                     if temp is None:
                         temp = AStarNode(x,targetCell)
@@ -311,6 +345,9 @@ def searchPath(nzMap,startingCell,targetCell, limit = None):
                             workingList.append(temp);                        
         if (found):
             break   
+    for x in nzSim.blockedCells:
+        x.clear()
+    
     
     return distance,path
     

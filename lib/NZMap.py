@@ -236,6 +236,8 @@ class Cell():
         self.lat = None
         self.lon = None
         self.tags = None
+        self.blocked = False
+        self.tempBlocked = False
     def fill (self,osmId,lat,lon):
         self.lat = lat
         self.lon = lon
