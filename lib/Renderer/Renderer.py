@@ -75,6 +75,13 @@ def scroll(event):
             canvas.scale('all', 0, 0, 10.0/11.0, 10.0/11.0)
             scale *= (10.0/11.0)
 
+#def resize(event):
+    #global canvas
+    #region = canvas.bbox(tkinter.ALL)
+    print(region)
+    #windowsSize = (,)
+    #canvas.configure(scrollregion=region)      
+            
 def draw():
     for temp in osmMap.amenities:
         path = []
@@ -202,14 +209,17 @@ def draw():
             fill='#CCCCCC', width=2)
             
     for temp in osmMap.roads:
-        x =  (temp.lon - canvasOrigin[0]) * scale +viewPort[0]
-        y = (canvasSize[1]-( temp.lat - canvasOrigin[1])) * scale + viewPort[1]
-        drawCircle(temp.lon,temp.lat,1, "#476042")
-        for connection in temp.connections:
-            x1 = (connection.lon - canvasOrigin[0]) * scale +viewPort[0]
-            y1 = (canvasSize[1]-( connection.lat - canvasOrigin[1])) * scale + viewPort[1]
-            canvas.create_line(x, y, x1, y1)
-            
+        data = temp.getPathForRendering()
+        
+        x =  (data[0] - canvasOrigin[0]) * scale +viewPort[0]
+        y = (canvasSize[1]-(data[1] - canvasOrigin[1])) * scale + viewPort[1]
+        #drawCircle(temp.lon,temp.lat,1, "#476042")
+        x1 = (data[2] - canvasOrigin[0]) * scale +viewPort[0]
+        y1 = (canvasSize[1]-(data[3] - canvasOrigin[1])) * scale + viewPort[1]
+        canvas.create_line(x,y,x1,y1)
+        
+    for temp in osmMap.roadNodes:
+        drawCircle(temp.lon,temp.lat,1, "#476042")        
             
 def drawPath(path):
     prev = None
@@ -278,12 +288,14 @@ def render(map,simulation = None, path = None):
     viewPort = (0,0)
     prevPosition = None
     root = tkinter.Tk()
+    root.resizable(False,False)
     canvas = tkinter.Canvas(root)
     ## bind button
     canvas.bind("<B1-Motion>", motion)
     canvas.bind("<ButtonRelease-1>",clickRelease)
     canvas.bind("<Double-Button-1>",doubleClick)
     canvas.bind("<MouseWheel>", scroll)
+    #canvas.bind("<Configure>", resize)
     if OS == "Linux":
         root.bind_all('<4>', scroll, add='+')
         root.bind_all('<5>', scroll, add='+')

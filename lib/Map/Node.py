@@ -81,3 +81,11 @@ class Node():
         tempstring = tempstring + "\n"
         return tempstring
     
+    def getPosition(self):
+        """
+        [Method] getPosition
+        generate a tuple of longitude and lat in that order.
+        
+        Return = (lon,lat)
+        """
+        return (self.lat,self.lon)

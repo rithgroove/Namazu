@@ -5,6 +5,8 @@ import numpy
 import geopy.distance as distance
 from .Node import  Node
 from .Way import Way
+from .Road import Road
+from .Road import genName
 
 class Map(osmium.SimpleHandler):
     """
@@ -46,6 +48,8 @@ class Map(osmium.SimpleHandler):
         self.ways = []
         
         self.num_roads = 0
+        self.roadNodesDict = {}
+        self.roadNodes = []             
         self.roadsDict = {}
         self.roads = []             
         self.num_buildings = 0
@@ -86,7 +90,8 @@ class Map(osmium.SimpleHandler):
         Return: [string] String of summarized map Information.
         """
         tempstring = f"Namazu Map\n number of nodes = {self.num_nodes}\n number of ways = {self.num_ways}\n"
-        tempstring = tempstring + f"number of roads node = {self.roads.__len__()}\n number of building = {self.buildings.__len__()}"
+        tempstring = tempstring + f" number of roads = {self.roads.__len__()}\n"
+        tempstring = tempstring + f" number of roads node = {self.roadNodes.__len__()}\n number of building = {self.buildings.__len__()}"
         return tempstring
     
     def setBounds(self,filepath):
@@ -128,17 +133,30 @@ class Map(osmium.SimpleHandler):
                 self.others.append(x)
                 
     def processRoad(self,road):
+        """
+        [Method] processRoad
+        Method to link the node based on the open street map ways
+        
+        Parameter:
+            - road: Open Street Map Road.
+        """
         startingNode = None
         for node in road.nodes:
             if (startingNode is not None):
                 startingNode.addConnection(node)
-                node.addConnection(startingNode)
+                node.addConnection(startingNode)           
+                roadObject = self.roadsDict.get(genName(startingNode,node)[0])
+                if roadObject is None:
+                    roadObject = Road(startingNode,node)
+                    self.roadsDict[roadObject.name] = roadObject
+                    self.roads.append(roadObject)                                    
+                
             node.addWay(road)
             startingNode = node
-            temp = self.roadsDict.get(f"{node.osmId}")
+            temp = self.roadNodesDict.get(f"{node.osmId}")
             if temp is None:
-                self.roadsDict[node.osmId] = node
-                self.roads.append(node)
+                self.roadNodesDict[node.osmId] = node
+                self.roadNodes.append(node)
 
 def readFile(filepath):
     """
