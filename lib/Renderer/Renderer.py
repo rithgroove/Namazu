@@ -50,7 +50,7 @@ def clickRelease(event):
 
 def doubleClick(event):
     sim.step()
-    print("finish stepping")
+    #print("finish stepping")
     for x in sim.agents:
         moveAgent(x)
 
@@ -59,7 +59,7 @@ def scroll(event):
     global viewPort
     global scale
     value = -1*(event.delta)
-    print(f"Scrolling {value}")
+    #print(f"Scrolling {value}")
     if OS == 'Linux':
         if event.num == 4:
             canvas.scale('all', 0, 0, 1.1, 1.1)
@@ -78,7 +78,7 @@ def scroll(event):
 #def resize(event):
     #global canvas
     #region = canvas.bbox(tkinter.ALL)
-    print(region)
+    #print(region)
     #windowsSize = (,)
     #canvas.configure(scrollregion=region)      
             
@@ -234,18 +234,28 @@ def drawPath(path):
     for temp in path:
         drawCircle(temp.lon, temp.lat, 3,"#0000FF")
         
+
 def drawAgent():   
-    for temp in sim.blockedCells:
-        drawCircle(temp.cell.lon,temp.cell.lat,5, "#CC3333")
+    for cell in sim.cells:
+        drawCircle(cell.lon,cell.lat,2, "#999999")
+    #for temp in sim.blockedCells:
+    #    drawCircle(temp.cell.lon,temp.cell.lat,5, "#CC3333")
     for evacPoint in sim.evacPoints:
         drawCircle(evacPoint.cell.lon, evacPoint.cell.lat, 10,"#33CCCC")
     for agent in sim.agents:
-        agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CC33CC", agent.name)         
+        if (agent.haveERI()):
+            agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#00FF00", agent.name)         
+        else:
+            agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CC33CC", agent.name)         
 
 def moveAgent(agent):
-    x = agent.transition[0] * scale
-    y = agent.transition[1]  * scale * -1
+    x = agent.transition[1] * scale
+    y = agent.transition[0]  * scale * -1
     #print((x,y,agent.oval))
+    if (agent.haveERI()):
+        canvas.itemconfig(agent.oval,fill="#00FF00")
+    else:
+        canvas.itemconfig(agent.oval,fill="#CC33CC")        
     canvas.move(agent.oval,x,y)
 
 def drawCircle(lon,lat,radius, color, name = None):

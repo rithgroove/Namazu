@@ -157,7 +157,8 @@ class Map(osmium.SimpleHandler):
             if temp is None:
                 self.roadNodesDict[node.osmId] = node
                 self.roadNodes.append(node)
-
+               
+            
 def readFile(filepath):
     """
     [Function] readFile

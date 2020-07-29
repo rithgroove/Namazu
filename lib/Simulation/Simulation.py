@@ -1,6 +1,11 @@
 import geopy.distance as distance
 from .Cell import Cell
-
+from .EvacuationPoint import EvacuationPoint
+from .Agent import Agent
+from .ERI import ERI
+from .InitializationThread import InitializationThread
+import threading
+import random
 class Simulation():
     """
     [Class] Simulation
@@ -18,6 +23,7 @@ class Simulation():
     """
     def __init__(self, nzMap):
         self.cells = []
+        self.cellDict = {}
         self.agents = []
         self.evacuatedAgent = []
         self.evacPoints = []
@@ -40,91 +46,92 @@ class Simulation():
             destination = road.getDestinationCoordinate()
             x = 1
             prevCell = None
-            cell = Cell()
-            for x in range(1,noc):
+            
+            cell = self.cellDict.get(f"{road.start.osmId}")
+            if (cell is None):
                 cell = Cell()
-                passed += cellLength
-                transition = (roadVector[0]* passed/road.length, roadVector[1] * passed/road.length)
-                tempDestination = (starting[0] + transition [0], starting[1] + transition[1])                
-                cell.fill(f"{road.name}-{x}",tempDestination[0],tempDestination[1])
-                print(cell)
-                current = tempDestination
+                cell.fill(f"{road.start.osmId}",starting[0],starting[1])
+                self.cellDict[f"{road.start.osmId}"] = cell
+                self.cells.append(cell)
+            cell.addDestination(road.destination)
+            cell.addRoad(road)
+            prevCell = cell            
+            for x in range(1,noc):
+                name = f"{road.name}-{x}"
+                cell = self.cellDict.get(name)
+                if (cell is None):
+                    cell = Cell()
+                    passed += cellLength
+                    transition = (roadVector[0]* passed/road.length, roadVector[1] * passed/road.length)
+                    tempDestination = (starting[0] + transition [0], starting[1] + transition[1])                
+                    cell.fill(name,tempDestination[0],tempDestination[1])
+                    self.cellDict[name] = cell
+                    self.cells.append(cell)
+                    current = tempDestination
                 if (prevCell is not None):
-                    prevCell.neighb
+                    prevCell.addNeighbor(cell)
+                    cell.addNeighbor(prevCell)
+                cell.addDestination(road.start)
+                cell.addDestination(road.destination)
+                cell.addRoad(road)
                 prevCell = cell
-            cell = Cell()
-            cell.fill(f"{road.name}-{x}",destination[0],destination[1])
-            print(cell)
+                
+            cell = self.cellDict.get(f"{road.destination.osmId}")
+            if (cell is None):
+                cell = Cell()
+                cell.fill(f"{road.destination.osmId}",destination[0],destination[1])
+                self.cellDict[f"{road.destination.osmId}"] = cell
+                self.cells.append(cell)
+            if (prevCell is not None):
+                prevCell.addNeighbor(cell)
+                cell.addNeighbor(prevCell)
+            cell.addDestination(road.start)
+            cell.addRoad(road)
+        self.restructureRoad()
             
         
-    
-    
-    def initialize(self,agents, evac, numberOfBlockedCell = 10):
-        self.evacPoints = []
-        while self.evacPoints.__len__() < evac:
-            #set 12 capacity for now
-            cell = self.nzMap.roads[random.randint(0,self.nzMap.roads.__len__())]
-            if not cell.outOfBounds:
-                temp = evacPoint(cell,500)
-                self.evacPoints.append(temp)
-        self.agents = []
-        x = 1
-        while self.agents.__len__() < agents:
-            temp = Agent(f"agent-{x}")
-            #set one person
-            temp.number = 1
-            randomized = random.randint(0,self.nzMap.roads.__len__())
-            #print(randomized)
-            cell = self.nzMap.roads[randomized]
-            #print(cell)            
-            if not cell.outOfBounds:
-                temp.setCell(cell)
-                cell.population.append(temp)
-                self.agents.append(temp)
-                eri = ERI(self.nzMap,self)
-                eps = []
-                for ep in self.evacPoints:
-                    epDistance = distance.distance(ep.cell.getPosition(),cell.getPosition()).km
-                    eps.append((ep, epDistance))
-                eps.sort(key=lambda tup: tup[1])
-                temp2 = []
-                for i in range(0,3):
-                    temp2.append(eps[i][0])
-                eri.initiateEvacPoints(temp2)
-                temp.setERI(eri)
-                temp.calculateTrajectory()
-                print(f"Processing = {x}/{agents} agents")
-                x += 1
-            else:
-                print(f"Selected Cell is out of bounds, selecting another random cell")
-        self.blockedCells = []
-        
-        while self.blockedCells.__len__() < numberOfBlockedCell:
-            temp = Agent(f"agent-{x}")
-            #set one person
-            temp.number = 1
-            randomized = random.randint(0,self.nzMap.roads.__len__())
-            #print(randomized)
-            cell = self.nzMap.roads[randomized]
-            cell.blocked = True
-            #print(cell)            
-            if not cell.outOfBounds:
-                self.blockedCells.append(BlockedCell(cell))
-   
-            
-    def step(self):
+    def restructureRoad(self):
+        allRoads = []
+        i = 0 
+        while self.cells.__len__() > 0:
+            i +=1
+            queue = []
+            roadGroup = []
+            workingOn = self.cells.pop(0)
+            roadGroup.append(workingOn)
+            queue.append(workingOn)
+            while (queue.__len__() > 0):
+                workingOn = queue.pop(0)
+                for x in workingOn.connection:
+                    if (x in self.cells):
+                        self.cells.remove(x)
+                        if (x not in roadGroup):
+                            roadGroup.append(x)
+                        if (x not in queue):
+                            queue.append(x)
+            allRoads.append(roadGroup)
+        max = 0 
+        for x in allRoads:
+            if (x.__len__() > max):
+                self.cells = x
+                max = x.__len__()
+                
+    def step(self,steps = 15):
         #print("Stepping each agent")
         self.stepCount +=1
         for x in self.agents:
             temp = x.evacuated
-            x.step()
+            x.step(steps)
             if (temp != x.evacuated):
-                self.evacuatedAgent.append(x)        
+                self.evacuatedAgent.append(x)      
+        for x in self.agents:
+            x.shareKnowledge()
         self.filledEvacPoints = 0 
         for x in self.evacPoints:
             if (x.occupancy == x.capacity):
-                self.filledEvacPoints += 1                
-        self.shareInfo()
+                self.filledEvacPoints += 1      
+        
+        #self.shareInfo()
                 
     def shareInfo(self):
         affectedAgent =[]
@@ -148,4 +155,91 @@ class Simulation():
         temp = f"{temp}Total Evac Point = {self.evacPoints.__len__()}\n"
         temp = f"{temp}\tTotal Filled Evac Point = {self.filledEvacPoints}\n"
         return temp
+    
+    def initialize(self,agents, agentsWithERI, evac, capacity, numberOfThread = 3):
+        self.evacPoints = []
+        evac_id = 1
+        while self.evacPoints.__len__() < evac:
+            #set 12 capacity for now
+            cell = self.cells[random.randint(0,self.cells.__len__())]
+            if not cell.outOfBounds:
+                temp = EvacuationPoint(evac_id,cell,capacity)
+                self.evacPoints.append(temp)
+                cell.isEvacPoint = True
+                cell.evacPoint = temp 
+        self.agents = []
+        
+        #generate agent without ERI
+        threadList = []
+        for x in range(1,numberOfThread+1):
+            threadList.append(f"Thread-{x}")
+        threads = []
+        threadID = 1
+
+        for tName in threadList:
+            thread = InitializationThread(threadID, tName, int(agents/numberOfThread),self,False)
+            thread.start()
+            threads.append(thread)
+            threadID += 1
+
+        for t in threads:
+            t.join()
+            print(t.agents.__len__())
+            self.agents.extend(t.agents)
+        print("Finished generating agents Without ERI")
+        
+        #generate agent with ERI
+        threadList = []
+        for x in range(1,numberOfThread+1):
+            threadList.append(f"Thread-{x}")
+        threads = []
+        threadID = 1
+
+        for tName in threadList:
+            thread = InitializationThread(threadID, tName, int(agentsWithERI/numberOfThread),self,True)
+            thread.start()
+            threads.append(thread)
+            threadID += 1
+
+        for t in threads:
+            t.join()
+            print(t.agents.__len__())
+            self.agents.extend(t.agents)
+        print("Finished generating agents With ERI")
+        
+        
+        self.blockedCells = []
+        x = 1
+    
+    
+def generateAgent(agents,simulation,name,withERI=False):
+    tempAgents = []
+    while tempAgents.__len__() < agents:
+        randomized = random.randint(0,simulation.cells.__len__())
+        cell = simulation.cells[randomized]
+        #print(cell)            
+        if not cell.outOfBounds:
+            temp = Agent(f"agent-{name}-{x}",simulation.cellDict)
+            #set one person
+            temp.number = 1
+            temp.setCell(cell)
+            cell.population.append(temp)
+            tempAgents.append(temp)
+            eri = ERI(simulation.nzMap,simulation)
+            if withERI:
+                eps = []
+                for ep in simulation.evacPoints:
+                    epDistance = distance.distance(ep.cell.getPosition(),cell.getPosition()).km
+                    eps.append((ep, epDistance))
+                eps.sort(key=lambda tup: tup[1])
+                temp2 = []
+                for i in range(0,0):
+                    temp2.append(eps[i][0])
+                eri.initiateEvacPoints(temp2)
+            temp.setERI(eri)
+            temp.calculateTrajectory()
+            print(f"Processing = {x}/{agents} agents")
+            x += 1
+        else:
+            print(f"Selected Cell is out of bounds, selecting another random cell")
         

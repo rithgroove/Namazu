@@ -23,6 +23,7 @@ class Road:
     def __str__(self):
         temp = f"({self.start.lat},{self.start.lon}) to ({self.destination.lat},{self.destination.lon}) - {self.length}"
         return temp
+    
 def genName(node1, node2):
     name = None
     start = None 

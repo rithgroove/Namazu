@@ -1,3 +1,8 @@
+import geopy.distance as gdistance
+from .ERI import ERI
+from .MovementVector import MovementVector
+from .MovementSequence import MovementSequence
+import random
 class Agent():
     """
     [Class] Agent
@@ -27,7 +32,7 @@ class Agent():
         - walkedDistanceToNextCell : how many distance the current agent have walked from current cell to the next cell.
         - nextCellDistance : how many distance the current agent needs to walk to reach the next cell.
     """
-    def __init__(self,name = None):
+    def __init__(self,name = None,cellDict={}):
         """
         [Constructor]
         create an agent without a location
@@ -42,7 +47,7 @@ class Agent():
         self.interval = 0
         self.nextCell = None
         self.currentCell = None
-        self.movingSpeed = 1.4
+        self.movingSpeed = 1.46
         self.hasERI = False
         self.currentERI = None
         self.asking = True
@@ -54,6 +59,12 @@ class Agent():
         self.evacuated = False
         self.walkedDistanceToNextCell = 0
         self.nextCellDistance = 0
+        self.cellDict = cellDict
+        self.lat = 0
+        self.lon = 0
+        self.currentMovementVector = None
+        self.activeSequence = None
+        self.currentPosition = (0.0,0.0)
         
     def setCell(self,cell):
         """
@@ -63,7 +74,13 @@ class Agent():
         Parameter:
             - cell : The cell where the agent standing.
         """
+        if (self.currentCell is not None):
+            self.currentCell.removeAgent(self)
         self.currentCell = cell 
+        self.currentCell.addAgent(self)
+        self.currentPosition = cell.getPosition()
+        self.lat = cell.lat
+        self.lon = cell.lon
         
     def setERI(self,eri):
         """
@@ -77,63 +94,76 @@ class Agent():
         self.hasERI = True
         
     def calculateTrajectory(self,timestamp = None):
-        self.currentERI.calculateClosestEvacPoint(self.currentCell,timestamp = timestamp)
+        self.activeSequence = self.currentERI.calculateClosestEvacPoint(self.currentCell,timestamp = timestamp)
     
-    def step(self):
-        #print(f"\n\nCurrent Cell : \n{self.currentCell}")
-        self.transition = (0,0)
-        if (self.nextCell is None):    
-            nextCell = self.currentERI.step()
-            self.nextCell = nextCell
-            self.nextCellDistance = self.currentERI.calculateNextDistance(self.currentCell)
-            self.walkedDistanceToNextCell = 0
-            
-        if (self.nextCellDistance == self.walkedDistanceToNextCell):            
-            nextCell = self.nextCell
-            if (nextCell is not None):
-                #print(f"\nMoving To : \n{nextCell}")
-                if (nextCell.blocked):
-                    print("found a blocked cell")
-                    temp = BlockedCell(nextCell)
-                    self.currentERI.addBlockedCell(temp)
-                    self.calculateTrajectory()
-                    self.nextCellDistance = 0
-                    self.walkedDistanceToNextCell = 0
-                else:
-                    cell = self.currentCell
-                    #self.transition = (nextCell.lon-cell.lon, nextCell.lat - cell.lat)
-                    self.currentCell = nextCell
-                    nextCell.population.append(self)
-                    cell.population.remove(self)
-                    self.nextCell = None
-                #print(self.transition)
+    def evaluate(self):
+        if self.currentCell.isEvacPoint:
+            if (self.currentCell.evacPoint.addEvacuees(self)):
+                print("Evac Success")
+                self.evacuated = True
             else:
-                #if (self.currentCell == self.currentERI):
-                if (not self.evacuated):
-                    if (self.currentERI.destination.addEvacuees(self)):
-                        print("Evac Success")
-                        self.evacuated = True
-                        self.nextCellDistance = 0
-                        self.walkedDistanceToNextCell = 0
-                    else:
-                        print("Evacpoint full, finding next evac point")
-                        self.currentERI.disableEvacPoint(self.currentERI.destination)
-                        self.currentERI.getNewEvacPointInformation(self)
-                        self.calculateTrajectory()
-                        self.nextCellDistance = 0
-                        self.walkedDistanceToNextCell = 0
-        else:
-            cell = self.currentCell
-            tempTransition = self.movingSpeed
-            if (self.nextCellDistance- self.walkedDistanceToNextCell < self.movingSpeed):
-                self.walkedDistanceToNextCell = self.nextCellDistance
-                tempTransition = self.nextCellDistance - self.walkedDistanceToNextCell
-            else:
-                self.walkedDistanceToNextCell += self.movingSpeed
-            percentage = float(tempTransition) / float(self.nextCellDistance)
-            self.transition = ((self.nextCell.lon-cell.lon)*percentage, (self.nextCell.lat - cell.lat)*percentage)
-            #print(self.transition)
+                # Add info to knowledge pool
+                print("Evacpoint full")
+                self.currentERI.disableEvacPoint(self.currentERI.destination)                
+        if self.currentCell.blocked:    
+            print("Do Nothing Now")
             
-                    
-    def shareKnowledge(self, agent):
-        return self.currentERI.shareKnowledge(agent.currentERI)
+    def step(self,steps=1):
+        if(self.activeSequence is None or self.activeSequence.finished):
+            #check ERI is empty?
+            if(self.currentERI.isEmpty()):
+                self.nonERIStep()
+            else:
+                # recalculate closest evac point
+                self.activeSequence = self.currentERI.calculateClosestEvacPoint(self.currentCell)
+        if self.activeSequence is not None:
+            #after recalculate
+            leftOver = steps*self.movingSpeed
+            while leftOver > 0 and not self.activeSequence.finished and not self.evacuated:
+                leftOver = self.activeSequence.step(leftOver)
+                self.currentCell.removeAgent(self)
+                self.currentCell = self.activeSequence.currentCell
+                self.currentCell.addAgent(self)
+                self.evaluate()
+                #print(f"leftover = {leftOver}")
+            self.transition = self.activeSequence.getVector(self.currentPosition)
+            self.lat = self.currentPosition[0] + self.transition[0]
+            self.lon = self.currentPosition[1] + self.transition[1]
+            self.currentPosition= (self.lat, self.lon)       
+            #self.transition = (self.transition[1], self.transition[0])
+           
+    def nonERIStep(self):
+        option = []
+        origin = None
+        if (self.activeSequence is not None):
+            origin = self.activeSequence.lastCell
+        for x in self.currentCell.connection:
+            if (origin is None or x.osmId != origin.osmId):
+                option.append(x)
+        if (option.__len__() == 0):
+            option.append(origin)
+        target = option[random.randint(0, option.__len__()-1)]
+        #if (origin is not None):
+            #print(f"{origin.osmId} vs {target.osmId}")
+        vector = [MovementVector(self.currentCell,target)]
+        sequence = MovementSequence(vector,vector[0].distance)
+        self.activeSequence = sequence
+        
+    def haveERI(self):
+        return not self.currentERI.isEmpty()
+    
+    def addERIKnowledge(self,ERI):
+        return self.currentERI.shareKnowledge(ERI)
+
+    def shareKnowledge(self):
+        if (self.haveERI):
+            self.spreadKnowledge(self.sound,self.currentCell)
+    
+    def spreadKnowledge(self,count,currentCell):
+        if(count > 0):
+            for y in currentCell.population:
+                #share knowledge here:
+                if (y.addERIKnowledge(self.currentERI)):
+                    print("Sharing knowledge")
+            for x in currentCell.connection:
+                self.spreadKnowledge(count-1,x)

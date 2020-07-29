@@ -1,3 +1,4 @@
+import random
 class Cell():
     """
     [Class] Cell
@@ -36,6 +37,9 @@ class Cell():
         self.tags = None
         self.blocked = False
         self.tempBlocked = False
+        self.evacPoint = None
+        self.isEvacPoint = False
+        self.roads = []
         
     def fill (self,osmId,lat,lon):
         """
@@ -62,6 +66,9 @@ class Cell():
         tempstring = f"id: {self.osmId}\nlat = {self.lat} lon = {self.lon} \nNeighbor : \n"
         for neighbor in self.connection:
             tempstring = tempstring + f"\t{neighbor.osmId} : {neighbor.lat}, {neighbor.lon}\n"
+        tempstring = tempstring +f" \nRoads : \n"
+        for road in self.roads:
+            tempstring = tempstring + f"\t{road.__str__()}\n"
         return tempstring
     
     def setTempBlockedStatus(self):
@@ -93,3 +100,27 @@ class Cell():
         Return : (lat,lon)
         """
         return (self.lat,self.lon);
+    
+    def addNeighbor(self,neighbor):
+        if (neighbor not in self.connection):
+            self.connection.append(neighbor)
+            self.connectionWeight.append(0)
+            
+    def addRoad(self,road):
+        if (road not in self.roads):
+            self.roads.append(road)
+    
+    def addDestination(self,node):
+        if (node not in self.destination):
+            self.destination.append(node)
+    
+    def getRandomDestination(self):
+        return self.destination[random.randint(0,self.destination.__len__()-1)]
+    
+    def addAgent(self,agent):
+        if (agent not in self.population):
+            self.population.append(agent)
+    
+    def removeAgent(self,agent):
+        while (agent in self.population):
+            self.population.remove(agent)

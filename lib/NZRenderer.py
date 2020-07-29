@@ -238,8 +238,8 @@ def drawAgent():
         agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CC33CC", agent.name)         
 
 def moveAgent(agent):
-    x = agent.transition[0] * scale
-    y = agent.transition[1]  * scale * -1
+    x = agent.transition[1] * scale
+    y = agent.transition[0] * scale * -1
     #print((x,y,agent.oval))
     canvas.move(agent.oval,x,y)
 
