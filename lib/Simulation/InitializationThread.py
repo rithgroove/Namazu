@@ -4,12 +4,13 @@ import threading
 import time
 import random
 from .Agent import Agent
+from .EvacLeaderAgent import EvacLeaderAgent
 from .ERI import ERI
 import geopy.distance as distance
 exitFlag = 0
 
 class InitializationThread (threading.Thread):
-    def __init__(self, threadID, name,agent,simulation,withERI = False):
+    def __init__(self, threadID, name,agent,simulation,withERI = False,evacLeader = False):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.name = name
@@ -17,12 +18,13 @@ class InitializationThread (threading.Thread):
         self.simulation = simulation
         self.agents = []
         self.withERI = withERI
+        self.evacLeader = evacLeader
     def run(self):
         print(f"Starting {self.name}")
-        self.agents = generateAgent(self.agent,self.simulation,self.name,self.withERI)
+        self.agents = generateAgent(self.agent,self.simulation,self.name,self.withERI,self.evacLeader)
         print(f"Exiting {self.name}")
         
-def generateAgent(agents,simulation,name,withERI=False):
+def generateAgent(agents,simulation,name,withERI=False,evacLeader = False):
     tempAgents = []
         #queueLock.acquire()          
     x = 1
@@ -31,7 +33,11 @@ def generateAgent(agents,simulation,name,withERI=False):
         cell = simulation.cells[randomized]
         #print(cell)  
         if not cell.outOfBounds:
-            temp = Agent(f"agent-{name}-{x}",simulation.cellDict)
+            temp = None
+            if(evacLeader):
+                temp = EvacLeaderAgent(f"evacLead-{name}-{x}",simulation.cellDict)
+            else:
+                temp = Agent(f"agent-{name}-{x}",simulation.cellDict)
              #set one person
             temp.number = 1
             temp.setCell(cell)
@@ -49,7 +55,9 @@ def generateAgent(agents,simulation,name,withERI=False):
                     temp2.append(eps[i][0])
                 eri.initiateEvacPoints(temp2)
             temp.setERI(eri)
-            temp.calculateTrajectory()
+            if(not evacLeader):
+                temp.calculateTrajectory()
+            #temp.calculateTrajectory()
             print(f"{name}->Processing = {x}/{agents} agents")
             x += 1
         else:

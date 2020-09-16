@@ -13,6 +13,7 @@ scale = None
 prevPosition = None
 canvas = None
 OS = platform.system()
+animating = False
 
 
 
@@ -49,11 +50,19 @@ def clickRelease(event):
     prevPosition = None
 
 def doubleClick(event):
-    sim.step()
-    #print("finish stepping")
-    for x in sim.agents:
-        moveAgent(x)
-
+    global animating
+    animating = not animating
+    
+def step():
+    global animating
+    if (animating):
+        sim.step()
+        print("finish stepping")
+        for x in sim.agents:
+            moveAgent(x)
+        
+    canvas.after(1000,step)
+        
 def scroll(event):
     global canvas
     global viewPort
@@ -243,16 +252,22 @@ def drawAgent():
     for evacPoint in sim.evacPoints:
         drawCircle(evacPoint.cell.lon, evacPoint.cell.lat, 10,"#33CCCC")
     for agent in sim.agents:
-        if (agent.haveERI()):
+        if (agent.evacLeader):
+            agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CCCC33", agent.name)  
+        elif (agent.haveERI()):
             agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#00FF00", agent.name)         
         else:
-            agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CC33CC", agent.name)         
+            agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#CC33CC", agent.name)      
+    for agent in sim.WBF:
+        agent.oval = drawCircle(agent.currentCell.lon, agent.currentCell.lat, 5,"#0000FF", agent.name)         
 
 def moveAgent(agent):
     x = agent.transition[1] * scale
     y = agent.transition[0]  * scale * -1
     #print((x,y,agent.oval))
-    if (agent.haveERI()):
+    if (agent.evacLeader):
+        canvas.itemconfig(agent.oval,fill="#CCCC33")
+    elif (agent.haveERI()):
         canvas.itemconfig(agent.oval,fill="#00FF00")
     else:
         canvas.itemconfig(agent.oval,fill="#CC33CC")        
@@ -320,4 +335,6 @@ def render(map,simulation = None, path = None):
         drawPath(path)
     if (sim is not None):
         drawAgent()
+        
+    canvas.after(1000,step)
     root.mainloop()

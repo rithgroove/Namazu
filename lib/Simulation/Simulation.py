@@ -31,6 +31,7 @@ class Simulation():
         self.stepCount = 0
         self.filledEvacPoints = 0
         self.blockedCells = []
+        self.WBF = []
         
     def buildCells(self,cellLength = 20):        
         for road in self.nzMap.roads:
@@ -124,6 +125,8 @@ class Simulation():
             x.step(steps)
             if (temp != x.evacuated):
                 self.evacuatedAgent.append(x)      
+        for x in self.WBF:
+            x.shareKnowledge()
         for x in self.agents:
             x.shareKnowledge()
         self.filledEvacPoints = 0 
@@ -156,7 +159,7 @@ class Simulation():
         temp = f"{temp}\tTotal Filled Evac Point = {self.filledEvacPoints}\n"
         return temp
     
-    def initialize(self,agents, agentsWithERI, evac, capacity, numberOfThread = 3):
+    def initialize(self,agents, agentsWithERI, evac, capacity, numberOfThread = 3, WBF_count  = 40):
         self.evacPoints = []
         evac_id = 1
         while self.evacPoints.__len__() < evac:
@@ -177,7 +180,7 @@ class Simulation():
         threadID = 1
 
         for tName in threadList:
-            thread = InitializationThread(threadID, tName, int(agents/numberOfThread),self,False)
+            thread = InitializationThread(threadID, tName, int(agents/numberOfThread),self,False,False)
             thread.start()
             threads.append(thread)
             threadID += 1
@@ -196,7 +199,7 @@ class Simulation():
         threadID = 1
 
         for tName in threadList:
-            thread = InitializationThread(threadID, tName, int(agentsWithERI/numberOfThread),self,True)
+            thread = InitializationThread(threadID, tName, int(agentsWithERI/numberOfThread),self,True,False)
             thread.start()
             threads.append(thread)
             threadID += 1
@@ -207,6 +210,50 @@ class Simulation():
             self.agents.extend(t.agents)
         print("Finished generating agents With ERI")
         
+        #generate evacuation leader agent
+        threadList = []
+        for x in range(1,numberOfThread+1):
+            threadList.append(f"Thread-{x}")
+        threads = []
+        threadID = 1
+
+        for tName in threadList:
+            thread = InitializationThread(threadID, tName, int(agentsWithERI/numberOfThread),self,True,True)
+            thread.start()
+            threads.append(thread)
+            threadID += 1
+
+        for t in threads:
+            t.join()
+            print(t.agents.__len__())
+            self.agents.extend(t.agents)
+        print("Finished generating evac-leader")
+        
+        
+        #generate WBF
+        threadList = []
+        for x in range(1,numberOfThread+1):
+            threadList.append(f"Thread-{x}")
+        threads = []
+        threadID = 1
+        
+        for tName in threadList:
+            thread = InitializationThread(threadID, tName, int(WBF_count/numberOfThread),self,True)
+            thread.start()
+            threads.append(thread)
+            threadID += 1
+
+        for t in threads:
+            t.join()
+            print(t.agents.__len__())
+            self.WBF.extend(t.agents)
+        print("Finished generating WBF")
+        
+        for x in self.WBF:
+            x.WBF = True
+            x.movingSpeed = 0.0
+            x.sound = 10
+            print(x)
         
         self.blockedCells = []
         x = 1

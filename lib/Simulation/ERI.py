@@ -76,6 +76,7 @@ class ERI():
         return test
     
     def disableEvacPoint(self,evacPoint):
+        print("disable evacuation point")
         if (evacPoint not in self.disabledEvacPoints):
             self.disabledEvacPoints.append(evacPoint)
             return True
@@ -83,6 +84,7 @@ class ERI():
         
     def getNewEvacPointInformation(self,agent):
         eps = []
+        print("Get new evac")
         for ep in self.nzSim.evacPoints: 
             if (ep not in self.evacPoints):
                 epDistance = distance.distance(ep.cell.getPosition(),agent.currentCell.getPosition()).km
@@ -92,23 +94,26 @@ class ERI():
             self.evacPoints.append(eps[0][0])
         
     def addEvacPoint(self,evacPoint):
-        self.evacPoints.append(evacPoint)
+        if(evacPoint not in self.evacPoints):
+            print("evac point shared")
+            
+            self.evacPoints.append(evacPoint)
         
     def addBlockedCell(self,blockedCellInstance):
         self.blockedCell.append(blockedCellInstance)
         
-    def shareKnowledge(self, otherERI):
+    def gainKnowledge(self, otherERI):
         temp = False
         if (self.token != otherERI.token):
-            for evacPoint in self.evacPoints:
-                if (evacPoint not in otherERI.evacPoints):
-                    otherERI.addEvacPoint(evacPoint)
-                    temp = True
-            for disabledEP in self.disabledEvacPoints:
-                if (otherERI.disableEvacPoint(disabledEP)):
-                    temp = True
+            for evacPoint in otherERI.evacPoints:
+                print("copying evac point")
+                self.addEvacPoint(evacPoint)
+            for disabledEP in otherERI.disabledEvacPoints:
+                self.disableEvacPoint(disabledEP)                    
+            temp = True
+            print("sharing success")
         if (temp):
-            self.generateToken()
+            otherERI.generateToken()
         return temp
     
 class AStarNode():

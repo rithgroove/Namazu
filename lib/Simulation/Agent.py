@@ -65,7 +65,9 @@ class Agent():
         self.currentMovementVector = None
         self.activeSequence = None
         self.currentPosition = (0.0,0.0)
-        
+        self.WBF= False
+        self.evacLeader = False
+
     def setCell(self,cell):
         """
         [Method] setCell
@@ -82,6 +84,20 @@ class Agent():
         self.lat = cell.lat
         self.lon = cell.lon
         
+    def getSpeed(self):
+        speed = self.movingSpeed
+        if (self.weak):
+            speed = min(speed,0.94)
+        if (self.currentERI.isEmpty()):
+            speed = speed * 0.75
+        if self.number > 1:
+            speed = speed * (0.95-0.025*self.number)
+        return speed
+
+    def getVehicleSpeed():
+        speed = 40000.0/3600.0
+        return speed
+    
     def setERI(self,eri):
         """
         [Method] setERI
@@ -118,7 +134,8 @@ class Agent():
                 self.activeSequence = self.currentERI.calculateClosestEvacPoint(self.currentCell)
         if self.activeSequence is not None:
             #after recalculate
-            leftOver = steps*self.movingSpeed
+            leftOver = steps * self.getSpeed()
+            
             while leftOver > 0 and not self.activeSequence.finished and not self.evacuated:
                 leftOver = self.activeSequence.step(leftOver)
                 self.currentCell.removeAgent(self)
@@ -126,6 +143,7 @@ class Agent():
                 self.currentCell.addAgent(self)
                 self.evaluate()
                 #print(f"leftover = {leftOver}")
+                
             self.transition = self.activeSequence.getVector(self.currentPosition)
             self.lat = self.currentPosition[0] + self.transition[0]
             self.lon = self.currentPosition[1] + self.transition[1]
@@ -152,18 +170,23 @@ class Agent():
     def haveERI(self):
         return not self.currentERI.isEmpty()
     
-    def addERIKnowledge(self,ERI):
-        return self.currentERI.shareKnowledge(ERI)
+    def addERIKnowledge(self,otherERI):
+        return self.currentERI.gainKnowledge(otherERI)
 
     def shareKnowledge(self):
-        if (self.haveERI):
+        print(self.haveERI())
+        if (self.haveERI()):
+            #print(f"wat agentnya punya {self.currentERI.evacPoints.__len__()}")
+            #if (self.WBF):
+            #    print(f"I'm WBF and and I try to spread knowledge for {self.sound} cell")
             self.spreadKnowledge(self.sound,self.currentCell)
     
     def spreadKnowledge(self,count,currentCell):
+        
         if(count > 0):
             for y in currentCell.population:
                 #share knowledge here:
-                if (y.addERIKnowledge(self.currentERI)):
-                    print("Sharing knowledge")
+                if ( y != self and y.addERIKnowledge(self.currentERI)):
+                    print("")
             for x in currentCell.connection:
                 self.spreadKnowledge(count-1,x)
