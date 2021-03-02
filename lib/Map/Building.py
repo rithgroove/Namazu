@@ -1,14 +1,14 @@
 import geopy.distance as distance
 
 class Building:
-    def __init__(self,nodes):
-        self.nodes = nodes
-        lat,lon = 0,0
-        for i in nodes:
-            lat = i.lat
-            lon = i.lon
-        lat = lat/nodes.__len__()
-        lon = lon/nodes.__len__()        
+    def __init__(self,way):
+        self.way = way
+        self.lat,self.lon = 0,0
+        for i in range(0,way.nodes.__len__()-1):
+            self.lat += way.nodes[i].lat
+            self.lon += way.nodes[i].lon
+        self.lat = self.lat/(way.nodes.__len__()-1)
+        self.lon = self.lon/(way.nodes.__len__()-1)
             
     def getPath(self):
         return (self.start.lat, self.start.lon, self.destination.lat,self.destination.lon)

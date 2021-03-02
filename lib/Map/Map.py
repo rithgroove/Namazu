@@ -7,6 +7,7 @@ from .Node import  Node
 from .Way import Way
 from .Road import Road
 from .Road import genName
+from .Building import Building
 
 class Map(osmium.SimpleHandler):
     """
@@ -120,7 +121,8 @@ class Map(osmium.SimpleHandler):
         """
         for x in self.ways:
             if 'building' in x.tags.keys():
-                self.buildings.append(x)
+                temp = Building(x)
+                self.buildings.append(temp)
             elif 'natural' in x.tags.keys():
                 self.naturals.append(x)
             elif 'leisure' in x.tags.keys():

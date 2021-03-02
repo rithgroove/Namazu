@@ -15,8 +15,6 @@ canvas = None
 OS = platform.system()
 animating = False
 
-
-
 def motion(event):
     global prevPosition
     global viewPort
@@ -207,15 +205,16 @@ def draw():
             fill=fill, width=1)
     
     for temp in osmMap.buildings:
-        path = []
-        for node in temp.nodes:
+        path = []     
+        for node in temp.way.nodes:
             x = (node.lon - canvasOrigin[0]) * scale +viewPort[0]
             y = (canvasSize[1]-( node.lat - canvasOrigin[1])) * scale + viewPort[1]
             path.append(x)
             path.append(y)
-        if (path.__len__() > 6):
-            canvas.create_polygon(path, outline='#515464',
-            fill='#CCCCCC', width=2)
+            
+        if (path.__len__() > 6): #at least a triangle if not don't render
+            canvas.create_polygon(path, outline='#515464',fill='#CCCCCC', width=2)           
+            drawCircle(temp.lon,temp.lat,3, "#FF0000")   
             
     for temp in osmMap.roads:
         data = temp.getPathForRendering()
