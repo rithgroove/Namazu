@@ -89,7 +89,7 @@ class Simulation():
             cell.addDestination(road.start)
             cell.addRoad(road)
         self.restructureRoad()
-            
+        self.nzMap.recalculateGrid()
         
     def restructureRoad(self):
         allRoads = []
@@ -116,6 +116,16 @@ class Simulation():
             if (x.__len__() > max):
                 self.cells = x
                 max = x.__len__()
+                
+        for cell in self.cells:
+            if(self.nzMap.distanceLat is not None and self.nzMap.distanceLon is not None):
+                xAxis = int((cell.lon-self.nzMap.minlon)/self.nzMap.distanceLon)
+                yAxis = int((cell.lat-self.nzMap.minlat)/self.nzMap.distanceLat)
+                if xAxis >= self.nzMap.gridSize[0]:
+                    xAxis = self.nzMap.gridSize[0]-1
+                if yAxis >= self.nzMap.gridSize[1]:
+                    yAxis = self.nzMap.gridSize[1]-1
+                self.nzMap.grids[xAxis][yAxis].addCell(cell)
                 
     def step(self,steps = 15):
         #print("Stepping each agent")

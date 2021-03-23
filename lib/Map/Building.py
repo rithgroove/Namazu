@@ -9,6 +9,7 @@ class Building:
             self.lon += way.nodes[i].lon
         self.lat = self.lat/(way.nodes.__len__()-1)
         self.lon = self.lon/(way.nodes.__len__()-1)
+        self.closestCell = None
             
     def getPath(self):
         return (self.start.lat, self.start.lon, self.destination.lat,self.destination.lon)
@@ -29,3 +30,11 @@ class Building:
         temp = f"({self.start.lat},{self.start.lon}) to ({self.destination.lat},{self.destination.lon}) - {self.length}"
         return temp
     
+    def getPosition(self):
+            """
+            [Method]getPosition
+            get the latitude and longitude of the cell
+
+            Return : (lat,lon)
+            """
+            return (self.lat,self.lon);

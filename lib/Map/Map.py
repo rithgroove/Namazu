@@ -1,14 +1,14 @@
 import xml.etree.ElementTree as ET
 import os
 import osmium
-import numpy
+import numpy as np
 import geopy.distance as distance
 from .Node import  Node
 from .Way import Way
 from .Road import Road
 from .Road import genName
 from .Building import Building
-
+from .Grid import Grid
 class Map(osmium.SimpleHandler):
     """
     [Class] Map
@@ -28,7 +28,7 @@ class Map(osmium.SimpleHandler):
         - roadsDict : List of all nodes that marked as road.
         - roads : List of all roads.
     """
-    def __init__(self):
+    def __init__(self,grid = (10,10)):
         """
         [Constructor]    
         Generate Empty Map.
@@ -59,7 +59,11 @@ class Map(osmium.SimpleHandler):
         self.naturals = []
         self.leisures = []
         self.amenities = []
+        self.grids = [[0 for x in range(grid[1])] for y in range(grid[0])]
         self.others = []
+        self.distanceLat = None
+        self.distanceLon = None
+        self.gridSize = grid
         
     def node(self, n):
         """
@@ -95,7 +99,7 @@ class Map(osmium.SimpleHandler):
         tempstring = tempstring + f" number of roads node = {self.roadNodes.__len__()}\n number of building = {self.buildings.__len__()}"
         return tempstring
     
-    def setBounds(self,filepath):
+    def setBounds(self,filepath,grid=(10,10)):
         """
         [Method] __str__
         Setup the bounds using the file path
@@ -112,6 +116,11 @@ class Map(osmium.SimpleHandler):
                 self.minlon = float(child.attrib['minlon'])
                 self.maxlon = float(child.attrib['maxlon'])
                 break
+        self.distanceLat = (self.maxlat - self.minlat)/grid[1]
+        self.distanceLon = (self.maxlon - self.minlon)/grid[0]
+        for i in range(0,grid[0]):
+            for j in range(0,grid[1]):
+                self.grids[j][i] = Grid(self.minlat,self.minlon, self.distanceLat, self.distanceLon)        
                 
     def constructMap(self):
         """
@@ -123,6 +132,15 @@ class Map(osmium.SimpleHandler):
             if 'building' in x.tags.keys():
                 temp = Building(x)
                 self.buildings.append(temp)
+                if(self.distanceLat is not None and self.distanceLon is not None):
+                    xAxis = int((temp.lon-self.minlon)/self.distanceLon)
+                    yAxis = int((temp.lat-self.minlat)/self.distanceLat)
+                    if xAxis >= self.gridSize[0]:
+                        xAxis = self.gridSize[0]-1
+                    if yAxis >= self.gridSize[1]:
+                        yAxis = self.gridSize[1]-1
+                    print(f'{xAxis},{yAxis}')
+                    self.grids[xAxis][yAxis].addBuilding(temp)
             elif 'natural' in x.tags.keys():
                 self.naturals.append(x)
             elif 'leisure' in x.tags.keys():
@@ -159,9 +177,14 @@ class Map(osmium.SimpleHandler):
             if temp is None:
                 self.roadNodesDict[node.osmId] = node
                 self.roadNodes.append(node)
-               
-            
-def readFile(filepath):
+                
+    def recalculateGrid(self):
+        for i in range(0,self.gridSize[0]):
+            for j in range(0,self.gridSize[1]):
+                self.grids[j][i].remapBuilding()
+        
+    
+def readFile(filepath,grid = (10,10)):
     """
     [Function] readFile
     Function to generate map fom osm File
@@ -169,7 +192,7 @@ def readFile(filepath):
     parameter:
         - filepath : path to the OSM file
     """
-    generatedMap = Map()
+    generatedMap = Map(grid)
     generatedMap.apply_file(filepath)
     generatedMap.setBounds(filepath)
     generatedMap.constructMap()

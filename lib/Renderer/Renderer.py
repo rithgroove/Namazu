@@ -211,7 +211,8 @@ def draw():
             y = (canvasSize[1]-( node.lat - canvasOrigin[1])) * scale + viewPort[1]
             path.append(x)
             path.append(y)
-            
+        if (temp.closestCell is not None):
+            drawLine(temp.closestCell.lon,temp.closestCell.lat, temp.lon, temp.lat, '#000000')
         if (path.__len__() > 6): #at least a triangle if not don't render
             canvas.create_polygon(path, outline='#515464',fill='#CCCCCC', width=2)           
             drawCircle(temp.lon,temp.lat,3, "#FF0000")   
@@ -283,14 +284,13 @@ def drawCircle(lon,lat,radius, color, name = None):
     return circle
 
 def drawLine(originLon,originLat, destinationLon, destinationLat, color, name = None):
-    x = (lon - canvasOrigin[0]) * scale +viewPort[0]
-    y = (canvasSize[1]-( lat - canvasOrigin[1])) * scale + viewPort[1]
-    circle = None
-    if (name is None):
-        circle = canvas.create_oval(x-radius, y-radius, x+radius, y+radius, fill= color)
-    else:
-        circle = canvas.create_oval(x-radius, y-radius, x+radius, y+radius, fill=color,tag = name)
-    return circle
+    x =  (originLon - canvasOrigin[0]) * scale +viewPort[0]
+    y = (canvasSize[1]-(originLat- canvasOrigin[1])) * scale + viewPort[1]
+    #drawCircle(temp.lon,temp.lat,1, "#476042")
+    x1 = (destinationLon- canvasOrigin[0]) * scale +viewPort[0]
+    y1 = (canvasSize[1]-(destinationLat- canvasOrigin[1])) * scale + viewPort[1]
+    line = canvas.create_line(x,y,x1,y1)    
+    return line
 
 def render(map,simulation = None, path = None):
     global osmMap
